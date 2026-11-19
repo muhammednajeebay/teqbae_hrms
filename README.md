@@ -26,7 +26,7 @@ A production-grade, offline-first Flutter HRMS client application where a precon
 - **Dio (`dio` 5.x):** Configurable HTTP client with strict connection and receive timeouts (5s default) and typed error handling.
 - **Shelf (`shelf` 1.4.x):** Pure Dart mock backend for 100% reproducible development and testing across various failure scenarios without third-party external dependencies.
 
-<!-- *Architecture and design decisions are documented in detail in `decisions.md` and `coding_laws_and_architecture.md`.* -->
+*Architecture and design decisions are documented in detail in `decisions.md` and `coding_laws_and_architecture.md`.*
 
 ---
 
@@ -177,21 +177,6 @@ Client-side checks provide immediate feedback and smooth UX, but the production 
 
 ---
 
-<!-- ## 11. Time Spent Breakdown
-
-| Phase | Description | Planned | Actual |
-|---|---|---|---|
-| **Phase 0** | Project setup, dependencies, lints, Git repo | 0.50 h | 0.50 h |
-| **Phase 1** | Shelf mock server with scenarios and idempotency | 0.75 h | 0.75 h |
-| **Phase 2** | Domain entities, pure rules, and unit tests | 0.75 h | 0.75 h |
-| **Phase 3** | Drift database, Dio client, Repositories, Locations | 1.25 h | 1.25 h |
-| **Phase 4** | Offline Outbox sync engine and invariant tests | 1.50 h | 1.50 h |
-| **Phase 5** | Dashboard, Attendance UI, and History views | 1.00 h | 1.00 h |
-| **Phase 6** | Leave management, form cubit, and validations | 0.75 h | 0.75 h |
-| **Phase 7** | Debug panel, documentation, review, and verification | 0.50 h | 0.50 h |
-| **Total** | *(Strict 8.0-hour effort cap)* | **7.00 h** | **7.00 h** |
-
---- -->
 
 ## 12. AI-Usage Disclosure
 
@@ -206,10 +191,79 @@ In accordance with academic and evaluation integrity:
 
 ---
 
-<!-- ## Project Documentation Index
+## Project Documentation Index
 
 - [`phase_plan.md`](phase_plan.md) — Implementation schedule and milestone breakdown.
 - [`logic.md`](logic.md) — Exhaustive business rules, calculations, and error tables.
 - [`decisions.md`](decisions.md) — Architectural decision records (ADRs).
 - [`coding_laws_and_architecture.md`](coding_laws_and_architecture.md) — Layer boundaries, dependency rules, and coding standards.
-- [`task_progress.md`](task_progress.md) — Real-time task tracking and time log. -->
+- [`task_progress.md`](task_progress.md) — Real-time task tracking and time log.
+
+---
+
+## 13. Step-by-Step Guide: Running with ngrok (Physical Device Testing)
+
+This guide explains how to expose the local Shelf mock server to the public internet using **ngrok** so that a physical Android phone or external reviewer can connect and test the app.
+
+### 1. Prerequisites
+- Install ngrok on Windows:
+  ```powershell
+  winget install ngrok.ngrok
+  ```
+  *(Or download from [ngrok.com/download](https://ngrok.com/download))*.
+- Verify you have a modern version (`ngrok --version`). If it is below `3.30.0`, run `ngrok update`.
+- Sign up for a free account at [ngrok.com](https://ngrok.com) and retrieve your authtoken from your dashboard.
+- Connect your authtoken (one-time setup):
+  ```powershell
+  ngrok config add-authtoken <your-authtoken>
+  ```
+
+---
+
+### 2. Execution Runbook
+
+You will need **three terminal windows** during testing:
+
+#### Window 1: Start the Local Mock Server
+```powershell
+cd mock_server
+dart run bin/server.dart
+```
+> Keep this terminal open and running. It will show:
+> `REBS HRMS mock API listening on http://0.0.0.0:8080`
+
+#### Window 2: Start the ngrok Tunnel
+If you have claimed a free static domain (recommended, e.g. `powdery-paramedic-lining.ngrok-free.dev`):
+```powershell
+ngrok http --domain=powdery-paramedic-lining.ngrok-free.dev 8080
+```
+Or for a standard random URL:
+```powershell
+ngrok http 8080
+```
+> Keep this terminal open. Look for the line:
+> `Forwarding https://<your-subdomain>.ngrok-free.dev -> http://localhost:8080`
+> Copy that HTTPS URL.
+
+#### Window 3: Run or Build the App
+
+**Option A: Run live in Debug mode on your connected phone / emulator:**
+```powershell
+flutter run --dart-define=API_BASE_URL=https://<your-subdomain>.ngrok-free.dev
+```
+
+**Option B: Build the standalone Release APK to share with testers:**
+```powershell
+flutter build apk --release --dart-define=API_BASE_URL=https://<your-subdomain>.ngrok-free.dev
+```
+The output file will be saved at:
+`build/app/outputs/flutter-apk/app-release.apk`
+
+---
+
+### 3. Testing on the Physical Phone
+1. Install `app-release.apk` on the phone.
+2. Open the app — the dashboard connects via the ngrok URL to your computer's mock server.
+3. **Test Online Attendance:** Tap **Check In** or **Check Out** within the office area.
+4. **Test Offline Sync:** Turn on **Airplane Mode** on the phone, tap **Check In** or **Check Out** (saved locally as "Pending"), turn off Airplane Mode, and watch the event automatically sync to the server.
+5. **Test Edge Cases via Debug Panel:** Tap the **Tune icon (sliders)** in the top AppBar to switch server scenarios (`timeout`, `slow`, `server_error`, `accept_then_timeout`) or simulate GPS locations (`At Office`, `500m Away`, `GPS Off`) directly from the device.
