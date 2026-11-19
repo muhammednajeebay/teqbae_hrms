@@ -49,3 +49,9 @@ app.*.map.json
 .env
 
 
+# Project documentation & tracking
+coding_laws_and_architecture.md
+decisions.md
+logic.md
+phase_plan.md
+task_progress.md
