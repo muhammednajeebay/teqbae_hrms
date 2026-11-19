@@ -44,9 +44,8 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Project documentation & tracking
-coding_laws_and_architecture.md
-decisions.md
-logic.md
-phase_plan.md
-task_progress.md
+# Local environment and credentials
+*.env
+.env
+
+
