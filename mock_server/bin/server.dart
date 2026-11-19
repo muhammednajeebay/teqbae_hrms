@@ -7,16 +7,30 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_router/shelf_router.dart';
 
+/// Common JSON response headers including Cross-Origin Resource Sharing (CORS) support.
 const _jsonHeaders = <String, String>{
   'content-type': 'application/json; charset=utf-8',
   'access-control-allow-origin': '*',
 };
+
+/// Default office GPS latitude (Kochi office).
 const _officeLatitude = 9.9312;
+
+/// Default office GPS longitude (Kochi office).
 const _officeLongitude = 76.2673;
+
+/// Maximum allowed distance from office in meters (200m).
 const _officeRadiusMeters = 200.0;
 
+/// The singleton in-memory mock database store.
 final _store = _MockStore();
 
+/// Starts the REBS HRMS mock backend server on port 8080.
+///
+/// Sets up:
+/// - REST endpoints for employee, attendance, and leave.
+/// - Testing scenario endpoints (`/__scenario`, `/__reset`).
+/// - Request logging and CORS middleware.
 Future<void> main() async {
   final router = Router()
     ..get('/employee/me', _getEmployee)
@@ -39,6 +53,7 @@ Future<void> main() async {
   );
 }
 
+/// Middleware that handles CORS pre-flight OPTIONS requests and attaches CORS headers to responses.
 Middleware get _cors => (innerHandler) {
   return (request) async {
     if (request.method == 'OPTIONS') {
@@ -49,11 +64,13 @@ Middleware get _cors => (innerHandler) {
   };
 };
 
+/// Endpoint handler for `GET /employee/me`. Returns the current employee profile.
 Future<Response> _getEmployee(Request request) async {
   final blocked = await _applyScenario();
   return blocked ?? _json(200, _store.employee);
 }
 
+/// Endpoint handler for `GET /attendance?month=yyyy-MM`. Returns attendance records for a month.
 Future<Response> _getAttendance(Request request) async {
   final blocked = await _applyScenario();
   if (blocked != null) return blocked;
@@ -68,6 +85,13 @@ Future<Response> _getAttendance(Request request) async {
   return _json(200, {'records': records});
 }
 
+/// Endpoint handler for `POST /attendance/events`. Records a check-in or check-out event.
+///
+/// Enforces:
+/// - Idempotency via `clientEventId`: duplicate events return HTTP 200 with `duplicate: true`.
+/// - Single check-in per day (rejects duplicate same-type events with HTTP 409).
+/// - Sequence order: check-out requires prior check-in (HTTP 422).
+/// - Geofence validation: coordinates must be within 200m radius of the office (HTTP 422).
 Future<Response> _postAttendanceEvent(Request request) async {
   final payload = await _readJson(request);
   if (payload == null) {
@@ -79,6 +103,7 @@ Future<Response> _postAttendanceEvent(Request request) async {
   final eventId = payload['clientEventId'] as String;
   final existing = _store.eventsById[eventId];
   if (existing != null) {
+    // Return existing event without creating duplicate records.
     return _json(200, {'duplicate': true, 'event': existing});
   }
 
@@ -128,21 +153,30 @@ Future<Response> _postAttendanceEvent(Request request) async {
   _store.eventsById[eventId] = event;
   _store.updateRecord(event);
   if (_store.scenario == 'accept_then_timeout') {
+    // Save record first, then delay response to simulate network drop after server commit.
     await Future<void>.delayed(const Duration(seconds: 15));
   }
   return _json(201, {'duplicate': false, 'event': event});
 }
 
+/// Endpoint handler for `GET /leave/balance`. Returns remaining leave days.
 Future<Response> _getLeaveBalance(Request request) async {
   final blocked = await _applyScenario();
   return blocked ?? _json(200, _store.leaveBalance);
 }
 
+/// Endpoint handler for `GET /leave/requests`. Returns all leave requests.
 Future<Response> _getLeaveRequests(Request request) async {
   final blocked = await _applyScenario();
   return blocked ?? _json(200, {'requests': _store.leaveRequests});
 }
 
+/// Endpoint handler for `POST /leave/requests`. Submits a new leave request.
+///
+/// Enforces:
+/// - Valid date range (start <= end) and reason length (>= 10 chars).
+/// - Insufficient balance check against available days.
+/// - Overlap check against existing non-rejected leave requests.
 Future<Response> _postLeaveRequest(Request request) async {
   final payload = await _readJson(request);
   if (payload == null) {
@@ -203,9 +237,11 @@ Future<Response> _postLeaveRequest(Request request) async {
   return _json(201, leave);
 }
 
+/// Endpoint handler for `GET /__scenario`. Returns the current failure simulation scenario mode.
 Future<Response> _getScenario(Request request) async =>
     _json(200, {'mode': _store.scenario});
 
+/// Endpoint handler for `POST /__scenario`. Switches the mock failure simulation mode.
 Future<Response> _setScenario(Request request) async {
   final payload = await _readJson(request);
   final mode = payload?['mode'];
@@ -220,11 +256,13 @@ Future<Response> _setScenario(Request request) async {
   return _json(200, {'mode': mode});
 }
 
+/// Endpoint handler for `POST /__reset`. Clears all dynamic data and resets mock store to initial state.
 Future<Response> _reset(Request request) async {
   _store.reset();
   return _json(200, {'reset': true, 'mode': _store.scenario});
 }
 
+/// Simulates artificial network delays or HTTP error codes based on the active scenario.
 Future<Response?> _applyScenario() async {
   if (_store.scenario == 'slow') {
     await Future<void>.delayed(const Duration(seconds: 4));
@@ -241,6 +279,7 @@ Future<Response?> _applyScenario() async {
   return null;
 }
 
+/// Safely decodes a JSON request body into a Map, returning `null` on format error.
 Future<Map<String, dynamic>?> _readJson(Request request) async {
   try {
     final decoded = jsonDecode(await request.readAsString());
@@ -250,6 +289,7 @@ Future<Map<String, dynamic>?> _readJson(Request request) async {
   }
 }
 
+/// Checks that an attendance event payload contains all required fields and valid types.
 Response? _validateAttendancePayload(Map<String, dynamic> payload) {
   const required = [
     'clientEventId',
@@ -288,15 +328,19 @@ Response? _validateAttendancePayload(Map<String, dynamic> payload) {
   return null;
 }
 
+/// Builds an HTTP response with JSON body and proper headers.
 Response _json(int status, Object body) =>
     Response(status, body: jsonEncode(body), headers: _jsonHeaders);
 
+/// Builds a structured JSON error response with status code, error code, and human-readable message.
 Response _error(int status, String code, String message) =>
     _json(status, {'code': code, 'message': message});
 
+/// Safely parses an ISO date string into a DateTime, returning `null` if invalid.
 DateTime? _parseDate(Object? value) =>
     value is String ? DateTime.tryParse(value) : null;
 
+/// Calculates the surface distance in meters between two GPS coordinates using the Haversine formula.
 double _distanceMeters(
   double latitude1,
   double longitude1,
@@ -315,9 +359,12 @@ double _distanceMeters(
   return earthRadius * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
 }
 
+/// Converts degrees to radians.
 double _radians(double degrees) => degrees * math.pi / 180;
 
+/// In-memory storage holding mock server state (employee, records, events, balance, requests).
 class _MockStore {
+  /// All supported scenario modes for testing.
   static const scenarios = <String>[
     'success',
     'slow',
@@ -328,17 +375,30 @@ class _MockStore {
     'leave_rejected',
   ];
 
+  /// Currently active scenario mode.
   String scenario = 'success';
+
+  /// Preconfigured employee profile data.
   late Map<String, dynamic> employee;
+
+  /// Aggregated daily attendance records.
   late List<Map<String, dynamic>> attendanceRecords;
+
+  /// Map of all attendance events by clientEventId to guarantee idempotency.
   late Map<String, Map<String, dynamic>> eventsById;
+
+  /// Leave balance information.
   late Map<String, dynamic> leaveBalance;
+
+  /// List of submitted leave requests.
   late List<Map<String, dynamic>> leaveRequests;
 
+  /// Creates a mock store initialized with default seed data.
   _MockStore() {
     reset();
   }
 
+  /// Resets all mock data back to default values.
   void reset() {
     scenario = 'success';
     employee = {
@@ -387,6 +447,7 @@ class _MockStore {
     ];
   }
 
+  /// Updates or inserts a daily attendance record when a check-in or check-out event occurs.
   void updateRecord(Map<String, dynamic> event) {
     final date = event['companyDate'] as String;
     final index = attendanceRecords.indexWhere(

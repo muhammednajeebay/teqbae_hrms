@@ -5,6 +5,15 @@ import 'package:teqbae_hrms/features/leave/domain/leave.dart';
 import 'package:teqbae_hrms/features/leave/presentation/cubit/leave_form_cubit.dart';
 import 'package:teqbae_hrms/features/leave/presentation/cubit/leave_form_state.dart';
 
+/// The form screen where an employee fills in and submits a leave request.
+///
+/// Requires a [LeaveFormCubit] to be provided above it in the widget tree
+/// (created by [LeaveListPage] before pushing this route).
+///
+/// On success: pops back to the list page with a `true` return value so the
+/// list can trigger a refresh.
+/// On failure: shows the server error in a red SnackBar and keeps the form
+/// open so the user can correct the issue.
 class ApplyLeavePage extends StatelessWidget {
   const ApplyLeavePage({
     super.key,
@@ -12,7 +21,12 @@ class ApplyLeavePage extends StatelessWidget {
     required this.existingRequests,
   });
 
+  /// Current available leave days — passed to [LeaveFormCubit.submit] for the
+  /// balance validation rule.
   final int availableDays;
+
+  /// Already submitted requests — used by [LeaveFormCubit] to check for date
+  /// overlaps before submitting.
   final List<LeaveRequest> existingRequests;
 
   @override
@@ -129,13 +143,17 @@ class ApplyLeavePage extends StatelessWidget {
   }
 }
 
+/// A segmented button that lets the user choose between Casual and Sick leave.
 class _TypeSelector extends StatelessWidget {
   const _TypeSelector({
     required this.selectedType,
     required this.onTypeChanged,
   });
 
+  /// The currently selected leave type (drives the highlighted segment).
   final LeaveType selectedType;
+
+  /// Called whenever the user switches segments.
   final ValueChanged<LeaveType> onTypeChanged;
 
   @override
@@ -151,6 +169,10 @@ class _TypeSelector extends StatelessWidget {
   }
 }
 
+/// A tappable date selector field that opens Flutter's [showDatePicker].
+///
+/// Displays the selected date in `yyyy-MM-dd` format, or "Select Date" as a
+/// placeholder. Shows an error message below the field when [errorText] is set.
 class _DatePickerField extends StatelessWidget {
   const _DatePickerField({
     required this.label,
@@ -159,9 +181,16 @@ class _DatePickerField extends StatelessWidget {
     required this.onDateSelected,
   });
 
+  /// Label shown above the field (e.g. "Start Date").
   final String label;
+
+  /// The currently selected date, or `null` if none has been chosen yet.
   final DateTime? selectedDate;
+
+  /// Validation error to display below the field, or `null` if the field is valid.
   final String? errorText;
+
+  /// Called with the [DateTime] the user picks in the date-picker dialog.
   final ValueChanged<DateTime> onDateSelected;
 
   @override
@@ -209,6 +238,10 @@ class _DatePickerField extends StatelessWidget {
   }
 }
 
+/// A multi-line text field for the leave reason.
+///
+/// Displays an error message inline (via [TextField.decoration.errorText])
+/// when [errorText] is non-null.
 class _ReasonTextField extends StatelessWidget {
   const _ReasonTextField({
     required this.initialValue,
@@ -216,8 +249,13 @@ class _ReasonTextField extends StatelessWidget {
     required this.onChanged,
   });
 
+  /// The initial text to populate the field with.
   final String initialValue;
+
+  /// Validation error shown below the field, or `null` if the field is valid.
   final String? errorText;
+
+  /// Called on every keystroke with the new text value.
   final ValueChanged<String> onChanged;
 
   @override

@@ -1,4 +1,4 @@
-name: rebs_hrms_mock_server
+name: teqbae_hrms_mock_server
 description: Repeatable local HTTP API for the REBS HRMS assignment.
 publish_to: none
 

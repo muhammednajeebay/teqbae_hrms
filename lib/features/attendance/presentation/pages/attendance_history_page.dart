@@ -4,6 +4,11 @@ import 'package:teqbae_hrms/core/failure/failure.dart';
 import 'package:teqbae_hrms/features/attendance/domain/attendance.dart';
 import 'package:teqbae_hrms/features/attendance/domain/attendance_repository.dart';
 
+/// Shows a full month of attendance records along with any local pending events
+/// for that month.
+///
+/// The user can navigate between months using chevron buttons.
+/// Data is loaded fresh from the repository on each month change.
 class AttendanceHistoryPage extends StatefulWidget {
   const AttendanceHistoryPage({
     super.key,
@@ -11,7 +16,10 @@ class AttendanceHistoryPage extends StatefulWidget {
     required this.initialMonth,
   });
 
+  /// Used to fetch both server records and local pending events.
   final AttendanceRepository attendanceRepository;
+
+  /// The month to show first, in `yyyy-MM` format (e.g. `'2024-06'`).
   final String initialMonth;
 
   @override
@@ -19,23 +27,37 @@ class AttendanceHistoryPage extends StatefulWidget {
 }
 
 class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
+  /// The currently displayed month, stored as the first day of the month.
   late DateTime _selectedMonthDate;
+
+  /// `true` while an attendance fetch is in flight.
   bool _isLoading = false;
+
+  /// Synced attendance records from the server (via local cache).
   List<AttendanceRecord> _records = [];
+
+  /// Local pending/synced events for the displayed month that have not yet been
+  /// replaced by a server record.
   List<AttendanceEvent> _localEvents = [];
 
   @override
   void initState() {
     super.initState();
+    // Parse the initial month string into a DateTime so we can increment/decrement it.
     final parts = widget.initialMonth.split('-');
     final year = int.tryParse(parts[0]) ?? DateTime.now().year;
-    final month = parts.length > 1 ? int.tryParse(parts[1]) ?? DateTime.now().month : DateTime.now().month;
+    final month = parts.length > 1
+        ? int.tryParse(parts[1]) ?? DateTime.now().month
+        : DateTime.now().month;
     _selectedMonthDate = DateTime(year, month);
     _loadMonthData();
   }
 
+  /// Returns the current month as a `yyyy-MM` string for repository calls.
   String get _monthKey => DateFormat('yyyy-MM').format(_selectedMonthDate);
 
+  /// Fetches attendance records and local events for [_monthKey] and
+  /// updates [_records] and [_localEvents].
   Future<void> _loadMonthData() async {
     setState(() => _isLoading = true);
     final res = await widget.attendanceRepository.getAttendance(_monthKey);
@@ -52,6 +74,8 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
     }
   }
 
+  /// Moves the displayed month forward (+1) or backward (–1) by [delta] months
+  /// and reloads data for the new month.
   void _changeMonth(int delta) {
     setState(() {
       _selectedMonthDate = DateTime(_selectedMonthDate.year, _selectedMonthDate.month + delta);
@@ -98,6 +122,8 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
   }
 }
 
+/// A navigation bar that shows the current month and left/right chevron buttons
+/// to move to the previous or next month.
 class _MonthSelector extends StatelessWidget {
   const _MonthSelector({
     required this.title,
@@ -105,8 +131,13 @@ class _MonthSelector extends StatelessWidget {
     required this.onNext,
   });
 
+  /// The human-readable month label (e.g. `'June 2024'`).
   final String title;
+
+  /// Called when the user taps the left chevron to go to the previous month.
   final VoidCallback onPrevious;
+
+  /// Called when the user taps the right chevron to go to the next month.
   final VoidCallback onNext;
 
   @override
@@ -135,6 +166,10 @@ class _MonthSelector extends StatelessWidget {
   }
 }
 
+/// A card for a local outbox event (pending or synced) that has not yet been
+/// replaced by a confirmed server record.
+///
+/// Shows the event type (check-in/out), time, and a colour-coded status chip.
 class _LocalEventCard extends StatelessWidget {
   const _LocalEventCard({required this.event});
 
@@ -166,6 +201,10 @@ class _LocalEventCard extends StatelessWidget {
   }
 }
 
+/// A card showing a fully confirmed server attendance record for a single day.
+///
+/// Displays the check-in time, check-out time (or '--' if not yet checked out),
+/// and the total hours worked.
 class _RecordCard extends StatelessWidget {
   const _RecordCard({required this.record});
 

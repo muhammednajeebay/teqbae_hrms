@@ -24,7 +24,17 @@ import 'package:teqbae_hrms/features/leave/presentation/pages/leave_list_page.da
 import 'package:teqbae_hrms/features/sync/presentation/bloc/sync_state.dart';
 import 'package:teqbae_hrms/features/sync/presentation/pages/sync_status_page.dart';
 
+/// The main dashboard screen of the application.
+///
+/// This screen displays:
+/// - The employee's name, ID, and department.
+/// - Today's check-in/out status, recorded times, and active work duration.
+/// - Big check-in and check-out action buttons with geofencing.
+/// - Current available leave balance with a shortcut to the leave requests page.
+/// - The 5 most recent attendance records with a link to full monthly history.
+/// - App bar shortcuts for sync status, manual refresh, and developer debug panel.
 class DashboardPage extends StatelessWidget {
+  /// Creates the dashboard page with required dependencies.
   const DashboardPage({
     super.key,
     required this.attendanceRepository,
@@ -37,13 +47,28 @@ class DashboardPage extends StatelessWidget {
     this.locationService,
   });
 
+  /// Repository for reading attendance records and local outbox events.
   final AttendanceRepository attendanceRepository;
+
+  /// Optional repository for leave balance and requests (used to navigate to leave screen).
   final LeaveRepository? leaveRepository;
+
+  /// Service to check internet connectivity status.
   final ConnectivityService? connectivityService;
+
+  /// Clock service to obtain current time.
   final Clock? clock;
+
+  /// Calendar service to handle company timezones.
   final CompanyCalendar? calendar;
+
+  /// App configuration loaded at build time.
   final AppConfig? config;
+
+  /// API client used by the debug panel to test server scenarios.
   final RebsApi? api;
+
+  /// Location service supporting simulated presets for testing.
   final ConfigurableLocationService? locationService;
 
   @override
@@ -51,14 +76,17 @@ class DashboardPage extends StatelessWidget {
     return BlocListener<AttendanceActionBloc, AttendanceActionState>(
       listener: (context, state) {
         if (state is AttendanceActionSuccess) {
+          // Notify the user of successful local save or sync.
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(state.message),
               backgroundColor: state.isOffline ? Colors.orange.shade800 : Colors.green.shade800,
             ),
           );
+          // Refresh dashboard data to update status and timers.
           context.read<DashboardBloc>().add(const DashboardRefreshRequested());
         } else if (state is AttendanceActionFailure) {
+          // Display the reason why the action failed (e.g. outside geofence, already checked in).
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(state.message),
@@ -71,6 +99,7 @@ class DashboardPage extends StatelessWidget {
         appBar: AppBar(
           title: const Text('REBS HRMS'),
           actions: [
+            // Only show the debug panel button if test tools are provided.
             if (config != null && api != null && locationService != null)
               IconButton(
                 key: const Key('debug_panel_button'),
@@ -88,9 +117,12 @@ class DashboardPage extends StatelessWidget {
                   );
                 },
               ),
+            // Cloud sync button with a badge for pending outbox items.
             _SyncStatusIcon(),
+            // Manual refresh button.
             IconButton(
               icon: const Icon(Icons.refresh),
+              tooltip: 'Refresh',
               onPressed: () => context.read<DashboardBloc>().add(const DashboardRefreshRequested()),
             ),
           ],
@@ -122,14 +154,19 @@ class DashboardPage extends StatelessWidget {
               return ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
+                  // Banner shown when the device is offline or presenting cached data.
                   if (state.isOffline || state.isFromCache)
                     _OfflineBanner(lastUpdated: state.lastUpdated, isOffline: state.isOffline),
+                  // Employee profile overview card.
                   _EmployeeGreetingCard(employee: state.employee),
                   const SizedBox(height: 12),
+                  // Today's attendance status and times.
                   _TodayCard(state: state),
                   const SizedBox(height: 12),
+                  // Check-in and check-out action buttons.
                   _AttendanceActionButtons(state: state),
                   const SizedBox(height: 12),
+                  // Leave balance card that navigates to the leave request list.
                   _LeaveBalanceCard(
                     availableDays: state.availableLeaveDays,
                     onTap: leaveRepository != null && connectivityService != null && clock != null && calendar != null
@@ -148,6 +185,7 @@ class DashboardPage extends StatelessWidget {
                         : null,
                   ),
                   const SizedBox(height: 12),
+                  // Recent 5 attendance records.
                   _RecentAttendanceCard(
                     records: state.recentRecords,
                     attendanceRepository: attendanceRepository,
@@ -163,6 +201,9 @@ class DashboardPage extends StatelessWidget {
   }
 }
 
+/// An icon button in the app bar that shows a badge when outbox events are waiting to sync.
+///
+/// Tapping this opens the [SyncStatusPage] to review individual pending events.
 class _SyncStatusIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -181,6 +222,7 @@ class _SyncStatusIcon extends StatelessWidget {
                 );
               },
             ),
+            // Show badge counter if any events are waiting in the offline outbox.
             if (state.pendingCount > 0)
               Positioned(
                 right: 8,
@@ -204,10 +246,15 @@ class _SyncStatusIcon extends StatelessWidget {
   }
 }
 
+/// A notification banner displayed when the app is offline or reading from local cache.
 class _OfflineBanner extends StatelessWidget {
+  /// Creates the offline banner with timestamp and status.
   const _OfflineBanner({required this.lastUpdated, required this.isOffline});
 
+  /// The timestamp when the cached data was last updated.
   final DateTime lastUpdated;
+
+  /// Whether the device is currently completely offline.
   final bool isOffline;
 
   @override
@@ -238,9 +285,12 @@ class _OfflineBanner extends StatelessWidget {
   }
 }
 
+/// A card displaying the employee's avatar, full name, department, and employee ID.
 class _EmployeeGreetingCard extends StatelessWidget {
+  /// Creates the employee greeting card.
   const _EmployeeGreetingCard({required this.employee});
 
+  /// The employee profile details, or `null` if loading/unavailable.
   final Employee? employee;
 
   @override
@@ -284,9 +334,12 @@ class _EmployeeGreetingCard extends StatelessWidget {
   }
 }
 
+/// A card showing today's attendance summary: status, check-in time, check-out time, and working time.
 class _TodayCard extends StatelessWidget {
+  /// Creates the card using the loaded dashboard state.
   const _TodayCard({required this.state});
 
+  /// The loaded dashboard state containing today's attendance metrics.
   final DashboardLoaded state;
 
   @override
@@ -357,10 +410,15 @@ class _TodayCard extends StatelessWidget {
   }
 }
 
+/// A helper widget to render a single stat with a label and value vertically aligned.
 class _StatColumn extends StatelessWidget {
+  /// Creates the stat column widget.
   const _StatColumn({required this.label, required this.value});
 
+  /// The description label (e.g. "Check-in").
   final String label;
+
+  /// The formatted display value (e.g. "09:15").
   final String value;
 
   @override
@@ -375,9 +433,12 @@ class _StatColumn extends StatelessWidget {
   }
 }
 
+/// The check-in and check-out buttons that trigger attendance actions with location verification.
 class _AttendanceActionButtons extends StatelessWidget {
+  /// Creates the action buttons widget.
   const _AttendanceActionButtons({required this.state});
 
+  /// The loaded dashboard state to determine whether buttons should be enabled.
   final DashboardLoaded state;
 
   @override
@@ -385,7 +446,9 @@ class _AttendanceActionButtons extends StatelessWidget {
     return BlocBuilder<AttendanceActionBloc, AttendanceActionState>(
       builder: (context, actionState) {
         final isInProgress = actionState is AttendanceActionInProgress;
+        // Check-in allowed only if user has not yet checked in today and no action is currently running.
         final canCheckIn = state.todayStatus == TodayAttendanceStatus.notCheckedIn && !isInProgress;
+        // Check-out allowed only if user is checked in and not yet checked out.
         final canCheckOut = state.todayStatus == TodayAttendanceStatus.checkedIn && !isInProgress;
 
         return Row(
@@ -436,10 +499,15 @@ class _AttendanceActionButtons extends StatelessWidget {
   }
 }
 
+/// A card showing the employee's available leave days with an arrow navigating to the leave screen.
 class _LeaveBalanceCard extends StatelessWidget {
+  /// Creates the leave balance card.
   const _LeaveBalanceCard({required this.availableDays, this.onTap});
 
+  /// The number of available leave days.
   final int availableDays;
+
+  /// Callback when the user taps the card to view leave details.
   final VoidCallback? onTap;
 
   @override
@@ -457,13 +525,18 @@ class _LeaveBalanceCard extends StatelessWidget {
   }
 }
 
+/// A card that lists the employee's last 5 attendance records with a "View All" link to monthly history.
 class _RecentAttendanceCard extends StatelessWidget {
+  /// Creates the recent attendance list card.
   const _RecentAttendanceCard({
     required this.records,
     required this.attendanceRepository,
   });
 
+  /// Up to 5 most recent attendance records.
   final List<AttendanceRecord> records;
+
+  /// Attendance repository passed to the history page when opened.
   final AttendanceRepository attendanceRepository;
 
   @override

@@ -5,7 +5,15 @@ import 'package:teqbae_hrms/database/app_database.dart';
 import 'package:teqbae_hrms/features/employee/domain/employee.dart';
 import 'package:teqbae_hrms/features/employee/domain/employee_repository.dart';
 
+/// Concrete implementation of [EmployeeRepository].
+///
+/// Applies an offline-first cache strategy:
+/// 1. Offline → return cached profile (or failure if no cache exists).
+/// 2. Online + cache exists + no force refresh → return cache and trigger a
+///    silent background refresh.
+/// 3. Online + (no cache or force refresh) → fetch from API, cache, return.
 class EmployeeRepositoryImpl implements EmployeeRepository {
+  /// Creates an [EmployeeRepositoryImpl] with all dependencies injected.
   EmployeeRepositoryImpl({
     required RebsApi api,
     required AppDatabase database,
@@ -18,6 +26,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
   final AppDatabase _database;
   final ConnectivityService _connectivity;
 
+  /// Retrieves the employee profile using the offline-first strategy.
+  ///
+  /// If [forceRefresh] is `true`, always fetches from the network when online
+  /// (used after the user explicitly refreshes the dashboard).
   @override
   Future<Result<Employee>> getEmployee({bool forceRefresh = false}) async {
     final cached = await _database.getCachedEmployee();
@@ -27,11 +39,13 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       if (cached != null) {
         return Success(cached);
       }
-      return const FailureResult(NetworkFailure('You are offline and no employee profile is cached.'));
+      return const FailureResult(
+          NetworkFailure('You are offline and no employee profile is cached.'));
     }
 
     if (!forceRefresh && cached != null) {
-      // Background refresh
+      // Return the cached profile immediately and refresh in the background
+      // so the user is never blocked waiting for a network round-trip.
       _refreshEmployee();
       return Success(cached);
     }
@@ -41,14 +55,23 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       await _database.cacheEmployee(result.value);
       return result;
     } else if (cached != null) {
+      // Network fetch failed but we have a valid cache — use it.
       return Success(cached);
     }
     return result;
   }
 
+  /// Returns a live stream of the locally cached employee profile.
+  ///
+  /// Emits a new value when the cache row is inserted or updated.
   @override
   Stream<Employee?> watchEmployee() => _database.watchCachedEmployee();
 
+  /// Fetches the latest employee profile from the API and updates the local
+  /// cache silently in the background.
+  ///
+  /// Errors are intentionally ignored — this is a best-effort refresh. If it
+  /// fails, the existing cache remains valid.
   Future<void> _refreshEmployee() async {
     final result = await _api.getEmployee();
     if (result is Success<Employee>) {

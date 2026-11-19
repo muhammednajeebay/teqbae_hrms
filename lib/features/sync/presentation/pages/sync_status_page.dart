@@ -6,6 +6,12 @@ import 'package:teqbae_hrms/features/sync/presentation/bloc/sync_bloc.dart';
 import 'package:teqbae_hrms/features/sync/presentation/bloc/sync_event.dart';
 import 'package:teqbae_hrms/features/sync/presentation/bloc/sync_state.dart';
 
+/// Shows the full outbox history and lets the user trigger a manual sync.
+///
+/// The page is divided into three sections:
+/// - [_SyncHeader] — pending count, last sync time, and last error.
+/// - Scrollable event list — every attendance event with its status badge.
+/// - [_SyncFooter] — the "Sync Now" button, disabled while a sync is running.
 class SyncStatusPage extends StatelessWidget {
   const SyncStatusPage({super.key});
 
@@ -47,6 +53,12 @@ class SyncStatusPage extends StatelessWidget {
   }
 }
 
+/// Displays the aggregate sync status at the top of the page.
+///
+/// Shows:
+/// - Total pending count with a highlighted chip when non-zero.
+/// - The time of the last completed sync.
+/// - The error message from the last failed sync, in red.
 class _SyncHeader extends StatelessWidget {
   const _SyncHeader({required this.state});
 
@@ -68,14 +80,17 @@ class _SyncHeader extends StatelessWidget {
               Text(
                 'Pending Events: ${state.pendingCount}',
                 key: const Key('pending_count_text'),
-                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
               if (state.pendingCount > 0)
                 Chip(
                   key: const Key('pending_sync_chip'),
                   label: const Text('Pending Sync'),
                   backgroundColor: Colors.orange.shade100,
-                  labelStyle: TextStyle(color: Colors.orange.shade900, fontWeight: FontWeight.bold),
+                  labelStyle: TextStyle(
+                      color: Colors.orange.shade900,
+                      fontWeight: FontWeight.bold),
                 ),
             ],
           ),
@@ -84,7 +99,8 @@ class _SyncHeader extends StatelessWidget {
               padding: const EdgeInsets.only(top: 4),
               child: Text(
                 'Last sync: ${DateFormat('HH:mm:ss').format(state.lastSyncTime!.toLocal())}',
-                style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey.shade700),
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: Colors.grey.shade700),
               ),
             ),
           if (state.lastError != null)
@@ -101,6 +117,8 @@ class _SyncHeader extends StatelessWidget {
   }
 }
 
+/// A single row in the event list showing the event type, timestamp, status,
+/// and last error (if any).
 class _EventTile extends StatelessWidget {
   const _EventTile({required this.event});
 
@@ -109,7 +127,8 @@ class _EventTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isCheckIn = event.type == AttendanceEventType.checkIn;
-    final timeStr = DateFormat('yyyy-MM-dd HH:mm').format(event.occurredAt.toLocal());
+    final timeStr =
+        DateFormat('yyyy-MM-dd HH:mm').format(event.occurredAt.toLocal());
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -138,7 +157,8 @@ class _EventTile extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
                       event.lastError!,
-                      style: const TextStyle(color: Colors.red, fontSize: 11),
+                      style:
+                          const TextStyle(color: Colors.red, fontSize: 11),
                     ),
                   ),
               ],
@@ -151,10 +171,17 @@ class _EventTile extends StatelessWidget {
   }
 }
 
+/// A colour-coded chip that shows the event's sync status and attempt count.
+///
+/// - Orange: still pending, shows how many send attempts have been made.
+/// - Green: successfully synced with the server.
+/// - Red: permanently rejected by the server or local rules.
 class _StatusChip extends StatelessWidget {
   const _StatusChip({required this.status, required this.attempts});
 
   final AttendanceEventStatus status;
+
+  /// Total number of times [SyncService] has attempted to send this event.
   final int attempts;
 
   @override
@@ -164,24 +191,32 @@ class _StatusChip extends StatelessWidget {
         return Chip(
           label: Text('Pending ($attempts)'),
           backgroundColor: Colors.orange.shade50,
-          labelStyle: TextStyle(color: Colors.orange.shade800, fontSize: 11),
+          labelStyle:
+              TextStyle(color: Colors.orange.shade800, fontSize: 11),
         );
       case AttendanceEventStatus.synced:
         return Chip(
           label: const Text('Synced'),
           backgroundColor: Colors.green.shade50,
-          labelStyle: TextStyle(color: Colors.green.shade800, fontSize: 11),
+          labelStyle:
+              TextStyle(color: Colors.green.shade800, fontSize: 11),
         );
       case AttendanceEventStatus.rejected:
         return Chip(
           label: const Text('Rejected'),
           backgroundColor: Colors.red.shade50,
-          labelStyle: TextStyle(color: Colors.red.shade800, fontSize: 11),
+          labelStyle:
+              TextStyle(color: Colors.red.shade800, fontSize: 11),
         );
     }
   }
 }
 
+/// The sticky footer at the bottom of [SyncStatusPage] containing the
+/// "Sync Now" button.
+///
+/// The button is disabled and shows a progress indicator while a sync is
+/// already running to prevent duplicate requests.
 class _SyncFooter extends StatelessWidget {
   const _SyncFooter({required this.state});
 
@@ -199,7 +234,8 @@ class _SyncFooter extends StatelessWidget {
             key: const Key('sync_now_button'),
             onPressed: state.isSyncing
                 ? null
-                : () => context.read<SyncBloc>().add(const SyncRequested()),
+                : () =>
+                    context.read<SyncBloc>().add(const SyncRequested()),
             icon: state.isSyncing
                 ? const SizedBox(
                     width: 18,

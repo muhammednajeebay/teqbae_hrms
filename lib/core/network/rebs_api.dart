@@ -7,7 +7,21 @@ import 'package:teqbae_hrms/features/employee/domain/employee.dart';
 import 'package:teqbae_hrms/features/leave/domain/leave.dart';
 import 'package:teqbae_hrms/features/sync/domain/sync_api_client.dart';
 
+/// HTTP client that talks to the REBS API (or the Shelf mock server during
+/// development).
+///
+/// Every public method returns a [Result] — it never throws. Network and HTTP
+/// errors are caught and mapped to typed [Failure] subclasses so the calling
+/// code does not need try/catch blocks.
+///
+/// [RebsApi] also implements [SyncApiClient] so the [SyncService] only depends
+/// on the narrow interface it actually needs.
 class RebsApi implements SyncApiClient {
+  /// Creates a [RebsApi] configured with the given [AppConfig].
+  ///
+  /// A custom [Dio] instance can be passed for testing (e.g. with a mock
+  /// adapter). If omitted, a default Dio client is created with the base URL
+  /// and timeouts from [config].
   RebsApi(AppConfig config, {Dio? dio})
       : _dio = dio ??
             Dio(
@@ -21,6 +35,14 @@ class RebsApi implements SyncApiClient {
 
   final Dio _dio;
 
+  // ── Employee ─────────────────────────────────────────────────────────────
+
+  /// Fetches the profile of the currently authenticated employee.
+  ///
+  /// `GET /employee/me`
+  ///
+  /// Returns a [Success] with the [Employee] on HTTP 200, or a
+  /// [FailureResult] with a [ServerFailure] if the response body is empty.
   Future<Result<Employee>> getEmployee() async {
     try {
       final response = await _dio.get<Map<String, dynamic>>('/employee/me');
@@ -46,6 +68,14 @@ class RebsApi implements SyncApiClient {
     }
   }
 
+  // ── Attendance ───────────────────────────────────────────────────────────
+
+  /// Fetches attendance records for the given [month] (format: `yyyy-MM`).
+  ///
+  /// `GET /attendance?month=yyyy-MM`
+  ///
+  /// Returns a list of [AttendanceRecord] objects. The list may be empty if the
+  /// employee had no activity in that month.
   Future<Result<List<AttendanceRecord>>> attendance(String month) async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(
@@ -66,6 +96,15 @@ class RebsApi implements SyncApiClient {
     }
   }
 
+  /// Sends a single attendance event (check-in or check-out) to the server.
+  ///
+  /// `POST /attendance/events`
+  ///
+  /// The server uses [AttendanceEvent.clientEventId] to detect duplicates.
+  /// If the same event is sent twice, the server returns HTTP 200 with
+  /// `duplicate: true` — the app treats both 200 and 201 as success.
+  ///
+  /// This method is part of the [SyncApiClient] interface used by [SyncService].
   @override
   Future<Result<bool>> postAttendanceEvent(AttendanceEvent event) async {
     try {
@@ -91,6 +130,13 @@ class RebsApi implements SyncApiClient {
     }
   }
 
+  // ── Leave ────────────────────────────────────────────────────────────────
+
+  /// Fetches the employee's current leave balance.
+  ///
+  /// `GET /leave/balance`
+  ///
+  /// Returns a [LeaveBalance] with the number of available leave days.
   Future<Result<LeaveBalance>> getLeaveBalance() async {
     try {
       final response = await _dio.get<Map<String, dynamic>>('/leave/balance');
@@ -108,6 +154,12 @@ class RebsApi implements SyncApiClient {
     }
   }
 
+  /// Fetches all leave requests submitted by the employee.
+  ///
+  /// `GET /leave/requests`
+  ///
+  /// Returns a list of [LeaveRequest] objects in the order the server provides
+  /// them (typically newest first).
   Future<Result<List<LeaveRequest>>> getLeaveRequests() async {
     try {
       final response = await _dio.get<Map<String, dynamic>>('/leave/requests');
@@ -120,6 +172,13 @@ class RebsApi implements SyncApiClient {
     }
   }
 
+  /// Submits a new leave request to the server.
+  ///
+  /// `POST /leave/requests`
+  ///
+  /// Dates are formatted as `yyyy-MM-dd` strings.
+  /// The server validates the request and returns HTTP 422 with an error
+  /// message if any server-side rule is violated.
   Future<Result<LeaveRequest>> postLeaveRequest({
     required LeaveType type,
     required DateTime startDate,
@@ -147,6 +206,14 @@ class RebsApi implements SyncApiClient {
     }
   }
 
+  // ── Debug / Mock-server control endpoints ────────────────────────────────
+
+  /// Reads the currently active mock server scenario.
+  ///
+  /// `GET /__scenario`
+  ///
+  /// Returns the scenario mode string (e.g. `'success'`, `'timeout'`).
+  /// Only meaningful when talking to the Shelf mock server.
   Future<Result<String>> getScenario() async {
     try {
       final response = await _dio.get<Map<String, dynamic>>('/__scenario');
@@ -157,6 +224,12 @@ class RebsApi implements SyncApiClient {
     }
   }
 
+  /// Switches the mock server to the given failure [mode].
+  ///
+  /// `POST /__scenario` with body `{"mode": "<mode>"}`
+  ///
+  /// Valid modes: `success`, `slow`, `timeout`, `accept_then_timeout`,
+  /// `server_error`, `duplicate_conflict`, `leave_rejected`.
   Future<Result<String>> setScenario(String mode) async {
     try {
       final response = await _dio.post<Map<String, dynamic>>('/__scenario', data: {'mode': mode});
@@ -167,6 +240,12 @@ class RebsApi implements SyncApiClient {
     }
   }
 
+  /// Resets all mock server state back to its initial seed data.
+  ///
+  /// `POST /__reset`
+  ///
+  /// Clears all submitted leave requests, attendance events, and returns the
+  /// scenario to `'success'` mode.
   Future<Result<void>> resetServer() async {
     try {
       await _dio.post<Map<String, dynamic>>('/__reset');
@@ -176,6 +255,11 @@ class RebsApi implements SyncApiClient {
     }
   }
 
+  // ── Private helpers ──────────────────────────────────────────────────────
+
+  /// Parses a leave request JSON map into a [LeaveRequest] domain object.
+  ///
+  /// Applies safe defaults for any missing or unrecognised field values.
   LeaveRequest _parseLeaveRequest(Map<String, dynamic> json) {
     final typeString = (json['type'] as String? ?? 'Casual').toLowerCase();
     final statusString = (json['status'] as String? ?? 'Pending').toLowerCase();
@@ -197,6 +281,12 @@ class RebsApi implements SyncApiClient {
     );
   }
 
+  /// Converts a [DioException] into a typed [Failure].
+  ///
+  /// - Connection, receive, and send timeouts → [NetworkFailure]
+  /// - Connection errors (no route to host) → [NetworkFailure]
+  /// - Everything else (4xx / 5xx) → [ServerFailure] with the HTTP status code
+  ///   and the `message` / `code` fields from the JSON response body.
   Failure _mapError(DioException error) {
     if (error.type == DioExceptionType.connectionTimeout ||
         error.type == DioExceptionType.receiveTimeout ||
@@ -212,5 +302,8 @@ class RebsApi implements SyncApiClient {
     return ServerFailure(message, statusCode: error.response?.statusCode, code: code);
   }
 
-  DateTime? _date(Object? value) => value is String ? DateTime.tryParse(value)?.toUtc() : null;
+  /// Parses an ISO 8601 date string into a UTC [DateTime], or returns `null`
+  /// if the value is not a valid date string.
+  DateTime? _date(Object? value) =>
+      value is String ? DateTime.tryParse(value)?.toUtc() : null;
 }

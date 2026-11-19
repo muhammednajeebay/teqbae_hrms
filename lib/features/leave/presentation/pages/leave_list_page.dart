@@ -12,6 +12,16 @@ import 'package:teqbae_hrms/features/leave/presentation/bloc/leave_list_state.da
 import 'package:teqbae_hrms/features/leave/presentation/cubit/leave_form_cubit.dart';
 import 'package:teqbae_hrms/features/leave/presentation/pages/apply_leave_page.dart';
 
+/// Shows the leave balance and the full history of leave requests.
+///
+/// Features:
+/// - Offline banner when the device has no internet connection.
+/// - Pull-to-refresh support.
+/// - Balance card showing remaining days.
+/// - Scrollable list of [LeaveRequest] cards with status chips.
+/// - FAB to open [ApplyLeavePage] in a new route.
+///
+/// Requires [LeaveListBloc] to be provided above it in the widget tree.
 class LeaveListPage extends StatelessWidget {
   const LeaveListPage({
     super.key,
@@ -21,9 +31,16 @@ class LeaveListPage extends StatelessWidget {
     required this.calendar,
   });
 
+  /// Used to construct [LeaveFormCubit] when the user taps "Apply Leave".
   final LeaveRepository leaveRepository;
+
+  /// Used to construct [LeaveFormCubit] for connectivity checking on submit.
   final ConnectivityService connectivityService;
+
+  /// Used to construct [LeaveFormCubit] to get today's company date.
   final Clock clock;
+
+  /// Used to construct [LeaveFormCubit] to convert today's UTC time to company timezone.
   final CompanyCalendar calendar;
 
   @override
@@ -132,9 +149,11 @@ class LeaveListPage extends StatelessWidget {
   }
 }
 
+/// A large card that prominently displays the remaining leave balance.
 class _BalanceCard extends StatelessWidget {
   const _BalanceCard({required this.availableDays});
 
+  /// Number of leave days remaining according to the latest cached balance.
   final int availableDays;
 
   @override
@@ -173,6 +192,8 @@ class _BalanceCard extends StatelessWidget {
   }
 }
 
+/// A card showing the type, date range, duration, reason, and status of a
+/// single leave request.
 class _LeaveRequestCard extends StatelessWidget {
   const _LeaveRequestCard({required this.request});
 
@@ -216,6 +237,8 @@ class _LeaveRequestCard extends StatelessWidget {
   }
 }
 
+/// A colour-coded chip that indicates whether a leave request is pending,
+/// approved, or rejected.
 class _LeaveStatusChip extends StatelessWidget {
   const _LeaveStatusChip({required this.status});
 
