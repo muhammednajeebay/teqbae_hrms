@@ -129,7 +129,17 @@ class AttendanceActionBloc
     // Step 3: Read the device's current GPS position (or simulated preset).
     final locationResult = await _locationService.currentLocation();
     if (locationResult is FailureResult<AttendanceLocation>) {
-      emit(AttendanceActionFailure(locationResult.failure.message));
+      final failure = locationResult.failure;
+      final isPermDenied = failure is LocationFailure &&
+          failure.type == LocationFailureType.permissionPermanentlyDenied;
+      final isServiceDisabled = failure is LocationFailure &&
+          failure.type == LocationFailureType.serviceDisabled;
+
+      emit(AttendanceActionFailure(
+        failure.message,
+        isLocationPermanentlyDenied: isPermDenied,
+        isLocationServiceDisabled: isServiceDisabled,
+      ));
       return;
     }
 

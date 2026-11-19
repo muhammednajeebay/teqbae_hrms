@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:geolocator/geolocator.dart';
 import 'package:teqbae_hrms/core/failure/failure.dart';
 
@@ -30,7 +31,7 @@ class AttendanceLocation {
 
 // ── Interface ─────────────────────────────────────────────────────────────────
 
-/// Contract for anything that can return the current GPS position.
+/// Contract for anything that can return the current GPS position and manage location settings.
 ///
 /// Three implementations exist:
 /// - [GeolocatorLocationService] — real device GPS.
@@ -40,6 +41,12 @@ abstract interface class LocationService {
   /// Returns the current location or a [LocationFailure] if it cannot be
   /// determined (permission denied, GPS off, hardware error).
   Future<Result<AttendanceLocation>> currentLocation();
+
+  /// Opens the operating system's application details settings so the user can grant permissions.
+  Future<bool> openAppSettings();
+
+  /// Opens the operating system's location service settings so the user can enable GPS.
+  Future<bool> openLocationSettings();
 }
 
 // ── Real GPS ──────────────────────────────────────────────────────────────────
@@ -47,10 +54,10 @@ abstract interface class LocationService {
 /// Real device GPS implementation using the `geolocator` package.
 ///
 /// Performs the full permission check flow before reading the position:
-/// 1. Check whether location services are enabled on the device.
+/// 1. Check whether location services (GPS) are enabled on the device.
 /// 2. Check the current permission status.
 /// 3. Request permission if it has not been granted yet.
-/// 4. Read the position with high accuracy.
+/// 4. Read the position with high accuracy and a safe timeout limit.
 class GeolocatorLocationService implements LocationService {
   const GeolocatorLocationService();
 
@@ -60,38 +67,86 @@ class GeolocatorLocationService implements LocationService {
   /// generic hardware error).
   @override
   Future<Result<AttendanceLocation>> currentLocation() async {
+    // 1. Check if location services (GPS hardware switch) are turned on.
     if (!await Geolocator.isLocationServiceEnabled()) {
       return const FailureResult(
-          LocationFailure('Location services are turned off.'));
+        LocationFailure(
+          'Location services are turned off on your device. Please turn on GPS.',
+          type: LocationFailureType.serviceDisabled,
+        ),
+      );
     }
+
+    // 2. Check and request location permission if needed.
     var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
     }
     if (permission == LocationPermission.denied) {
       return const FailureResult(
-          LocationFailure('Location permission was denied.'));
+        LocationFailure(
+          'Location permission was denied. Location access is required to verify office presence.',
+          type: LocationFailureType.permissionDenied,
+        ),
+      );
     }
     if (permission == LocationPermission.deniedForever) {
-      return const FailureResult(LocationFailure(
-          'Location permission is permanently denied. Open Settings to allow it.'));
+      return const FailureResult(
+        LocationFailure(
+          'Location permission is permanently denied. Please open Settings to allow location access.',
+          type: LocationFailureType.permissionPermanentlyDenied,
+        ),
+      );
     }
+
+    // 3. Acquire GPS position with high accuracy and a 12-second timeout.
     try {
-      final position = await Geolocator.getCurrentPosition();
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 12),
+      );
       return Success(AttendanceLocation(
         latitude: position.latitude,
         longitude: position.longitude,
         accuracy: position.accuracy,
         isMocked: position.isMocked,
       ));
+    } on TimeoutException {
+      // If live GPS lock times out, try fallback to recent last-known location.
+      final lastKnown = await Geolocator.getLastKnownPosition();
+      if (lastKnown != null) {
+        return Success(AttendanceLocation(
+          latitude: lastKnown.latitude,
+          longitude: lastKnown.longitude,
+          accuracy: lastKnown.accuracy,
+          isMocked: lastKnown.isMocked,
+        ));
+      }
+      return const FailureResult(
+        LocationFailure(
+          'Location request timed out. Please ensure you have a clear view of the sky and try again.',
+          type: LocationFailureType.timeout,
+        ),
+      );
     } on LocationServiceDisabledException {
       return const FailureResult(
-          LocationFailure('Location services are turned off.'));
+        LocationFailure(
+          'Location services are turned off.',
+          type: LocationFailureType.serviceDisabled,
+        ),
+      );
     } catch (_) {
       return const FailureResult(
-          LocationFailure('Could not get your current location. Try again.'));
+        LocationFailure('Could not get your current location. Please try again.'),
+      );
     }
   }
+
+  @override
+  Future<bool> openAppSettings() => Geolocator.openAppSettings();
+
+  @override
+  Future<bool> openLocationSettings() => Geolocator.openLocationSettings();
 }
 
 // ── Simulated (fixed) ─────────────────────────────────────────────────────────
@@ -114,6 +169,12 @@ class SimulatedLocationService implements LocationService {
       location == null
           ? const FailureResult(LocationFailure('Simulated location is unavailable.'))
           : Success(location!);
+
+  @override
+  Future<bool> openAppSettings() async => true;
+
+  @override
+  Future<bool> openLocationSettings() async => true;
 }
 
 // ── Configurable (Debug Panel) ────────────────────────────────────────────────
@@ -175,4 +236,10 @@ class ConfigurableLocationService implements LocationService {
     }
     return _realLocationService.currentLocation();
   }
+
+  @override
+  Future<bool> openAppSettings() => _realLocationService.openAppSettings();
+
+  @override
+  Future<bool> openLocationSettings() => _realLocationService.openLocationSettings();
 }

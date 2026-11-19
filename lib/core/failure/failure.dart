@@ -51,10 +51,34 @@ class ServerFailure extends Failure {
   final String? code;
 }
 
+/// Specific category of location failure to allow tailored UI recovery actions.
+enum LocationFailureType {
+  /// Device location hardware or master switch is turned off.
+  serviceDisabled,
+
+  /// User denied location permission once.
+  permissionDenied,
+
+  /// User selected "Don't ask again" or denied permission permanently in Android settings.
+  permissionPermanentlyDenied,
+
+  /// Location fix took too long or timed out.
+  timeout,
+
+  /// Generic/unknown location failure.
+  generic,
+}
+
 /// A GPS / location error — the device could not determine the user's position
 /// (permission denied, GPS disabled, hardware unavailable).
 class LocationFailure extends Failure {
-  const LocationFailure(super.message);
+  const LocationFailure(
+    super.message, {
+    this.type = LocationFailureType.generic,
+  });
+
+  /// The specific reason for the location failure.
+  final LocationFailureType type;
 }
 
 /// A local database or file-system error — something went wrong while reading

@@ -56,11 +56,25 @@ class AttendanceActionSuccess extends AttendanceActionState {
 ///
 /// [message] is always safe to show to the user (e.g. "You are 350 m away.").
 class AttendanceActionFailure extends AttendanceActionState {
-  const AttendanceActionFailure(this.message);
+  const AttendanceActionFailure(
+    this.message, {
+    this.isLocationPermanentlyDenied = false,
+    this.isLocationServiceDisabled = false,
+  });
 
   /// Human-readable explanation of why the action failed.
   final String message;
 
+  /// Whether the action failed because location permission is permanently denied.
+  final bool isLocationPermanentlyDenied;
+
+  /// Whether the action failed because device location services (GPS) are turned off.
+  final bool isLocationServiceDisabled;
+
   @override
-  List<Object?> get props => [message];
+  List<Object?> get props => [
+        message,
+        isLocationPermanentlyDenied,
+        isLocationServiceDisabled,
+      ];
 }

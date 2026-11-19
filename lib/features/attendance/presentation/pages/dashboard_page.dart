@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import 'package:teqbae_hrms/features/attendance/domain/attendance.dart';
 import 'package:teqbae_hrms/features/attendance/domain/attendance_repository.dart';
@@ -86,13 +87,19 @@ class DashboardPage extends StatelessWidget {
           // Refresh dashboard data to update status and timers.
           context.read<DashboardBloc>().add(const DashboardRefreshRequested());
         } else if (state is AttendanceActionFailure) {
-          // Display the reason why the action failed (e.g. outside geofence, already checked in).
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(state.message),
-              backgroundColor: Colors.red.shade800,
-            ),
-          );
+          if (state.isLocationPermanentlyDenied) {
+            _showPermissionDeniedDialog(context);
+          } else if (state.isLocationServiceDisabled) {
+            _showLocationDisabledDialog(context);
+          } else {
+            // Display the reason why the action failed (e.g. outside geofence, already checked in).
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: Colors.red.shade800,
+              ),
+            );
+          }
         }
       },
       child: Scaffold(
@@ -196,6 +203,64 @@ class DashboardPage extends StatelessWidget {
             return const SizedBox.shrink();
           },
         ),
+      ),
+    );
+  }
+
+  /// Displays an alert dialog when location permission is permanently denied,
+  /// giving the user a direct button to open system app settings.
+  void _showPermissionDeniedDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.location_off, size: 40, color: Colors.deepOrange),
+        title: const Text('Location Permission Required'),
+        content: const Text(
+          'REBS HRMS requires precise location access to verify that you are within 200 metres of the office for check-in and check-out.\n\nLocation permission is permanently denied. Please tap "Open Settings" to enable location permission for REBS HRMS.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.icon(
+            icon: const Icon(Icons.settings),
+            label: const Text('Open Settings'),
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              locationService?.openAppSettings() ?? Geolocator.openAppSettings();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Displays an alert dialog when device location services (GPS hardware switch) are turned off,
+  /// giving the user a direct button to open device location settings.
+  void _showLocationDisabledDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.gps_off, size: 40, color: Colors.amber),
+        title: const Text('Location Services Disabled'),
+        content: const Text(
+          'Device location services (GPS) are turned off. Please turn on location services so REBS HRMS can verify office proximity.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.icon(
+            icon: const Icon(Icons.location_on),
+            label: const Text('Turn On Location'),
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              locationService?.openLocationSettings() ?? Geolocator.openLocationSettings();
+            },
+          ),
+        ],
       ),
     );
   }
