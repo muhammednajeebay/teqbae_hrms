@@ -26,7 +26,7 @@ void main() {
   const distanceCalculator = DistanceCalculator();
   const geofenceRule = GeofenceRule(distanceCalculator);
   const attendanceRules = AttendanceRules();
-  const locationService = GeolocatorLocationService();
+  final locationService = ConfigurableLocationService();
 
   final database = AppDatabase();
   final api = RebsApi(config);
@@ -64,5 +64,7 @@ void main() {
     attendanceRules: attendanceRules,
     clock: clock,
     calendar: calendar,
+    config: config,
+    api: api,
   ));
 }

@@ -147,6 +147,35 @@ class RebsApi implements SyncApiClient {
     }
   }
 
+  Future<Result<String>> getScenario() async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>('/__scenario');
+      final mode = response.data?['mode'] as String? ?? 'success';
+      return Success(mode);
+    } on DioException catch (error) {
+      return FailureResult(_mapError(error));
+    }
+  }
+
+  Future<Result<String>> setScenario(String mode) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>('/__scenario', data: {'mode': mode});
+      final updated = response.data?['mode'] as String? ?? mode;
+      return Success(updated);
+    } on DioException catch (error) {
+      return FailureResult(_mapError(error));
+    }
+  }
+
+  Future<Result<void>> resetServer() async {
+    try {
+      await _dio.post<Map<String, dynamic>>('/__reset');
+      return const Success(null);
+    } on DioException catch (error) {
+      return FailureResult(_mapError(error));
+    }
+  }
+
   LeaveRequest _parseLeaveRequest(Map<String, dynamic> json) {
     final typeString = (json['type'] as String? ?? 'Casual').toLowerCase();
     final statusString = (json['status'] as String? ?? 'Pending').toLowerCase();

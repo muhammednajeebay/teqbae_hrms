@@ -12,6 +12,15 @@ import 'package:teqbae_hrms/features/attendance/presentation/bloc/dashboard_stat
 import 'package:teqbae_hrms/features/attendance/presentation/pages/attendance_history_page.dart';
 import 'package:teqbae_hrms/features/employee/domain/employee.dart';
 import 'package:teqbae_hrms/features/sync/presentation/bloc/sync_bloc.dart';
+import 'package:teqbae_hrms/core/config/app_config.dart';
+import 'package:teqbae_hrms/core/network/connectivity_service.dart';
+import 'package:teqbae_hrms/core/network/rebs_api.dart';
+import 'package:teqbae_hrms/core/time/clock.dart';
+import 'package:teqbae_hrms/core/time/company_calendar.dart';
+import 'package:teqbae_hrms/features/attendance/data/location_service.dart';
+import 'package:teqbae_hrms/features/debug/presentation/debug_page.dart';
+import 'package:teqbae_hrms/features/leave/domain/leave_repository.dart';
+import 'package:teqbae_hrms/features/leave/presentation/pages/leave_list_page.dart';
 import 'package:teqbae_hrms/features/sync/presentation/bloc/sync_state.dart';
 import 'package:teqbae_hrms/features/sync/presentation/pages/sync_status_page.dart';
 
@@ -19,9 +28,23 @@ class DashboardPage extends StatelessWidget {
   const DashboardPage({
     super.key,
     required this.attendanceRepository,
+    this.leaveRepository,
+    this.connectivityService,
+    this.clock,
+    this.calendar,
+    this.config,
+    this.api,
+    this.locationService,
   });
 
   final AttendanceRepository attendanceRepository;
+  final LeaveRepository? leaveRepository;
+  final ConnectivityService? connectivityService;
+  final Clock? clock;
+  final CompanyCalendar? calendar;
+  final AppConfig? config;
+  final RebsApi? api;
+  final ConfigurableLocationService? locationService;
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +71,23 @@ class DashboardPage extends StatelessWidget {
         appBar: AppBar(
           title: const Text('REBS HRMS'),
           actions: [
+            if (config != null && api != null && locationService != null)
+              IconButton(
+                key: const Key('debug_panel_button'),
+                icon: const Icon(Icons.tune),
+                tooltip: 'Debug & Test Panel',
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => DebugPage(
+                        config: config!,
+                        api: api!,
+                        locationService: locationService!,
+                      ),
+                    ),
+                  );
+                },
+              ),
             _SyncStatusIcon(),
             IconButton(
               icon: const Icon(Icons.refresh),
@@ -90,7 +130,23 @@ class DashboardPage extends StatelessWidget {
                   const SizedBox(height: 12),
                   _AttendanceActionButtons(state: state),
                   const SizedBox(height: 12),
-                  _LeaveBalanceCard(availableDays: state.availableLeaveDays),
+                  _LeaveBalanceCard(
+                    availableDays: state.availableLeaveDays,
+                    onTap: leaveRepository != null && connectivityService != null && clock != null && calendar != null
+                        ? () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => LeaveListPage(
+                                  leaveRepository: leaveRepository!,
+                                  connectivityService: connectivityService!,
+                                  clock: clock!,
+                                  calendar: calendar!,
+                                ),
+                              ),
+                            );
+                          }
+                        : null,
+                  ),
                   const SizedBox(height: 12),
                   _RecentAttendanceCard(
                     records: state.recentRecords,
@@ -381,9 +437,10 @@ class _AttendanceActionButtons extends StatelessWidget {
 }
 
 class _LeaveBalanceCard extends StatelessWidget {
-  const _LeaveBalanceCard({required this.availableDays});
+  const _LeaveBalanceCard({required this.availableDays, this.onTap});
 
   final int availableDays;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -392,8 +449,9 @@ class _LeaveBalanceCard extends StatelessWidget {
       child: ListTile(
         leading: const Icon(Icons.calendar_month, color: Colors.deepPurple),
         title: const Text('Leave Balance', style: TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text('$availableDays available days remaining'),
+        subtitle: Text('$availableDays available days remaining (tap to view)'),
         trailing: const Icon(Icons.chevron_right),
+        onTap: onTap,
       ),
     );
   }
