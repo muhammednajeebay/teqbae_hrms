@@ -37,7 +37,8 @@ class AppConfig {
       companyTimeZone: companyTimeZone,
       officeLatitude: double.tryParse(latitudeStr) ?? defaultOfficeLatitude,
       officeLongitude: double.tryParse(longitudeStr) ?? defaultOfficeLongitude,
-      officeRadiusMeters: double.tryParse(radiusStr) ?? defaultOfficeRadiusMeters,
+      officeRadiusMeters:
+          double.tryParse(radiusStr) ?? defaultOfficeRadiusMeters,
     );
   }
 
@@ -50,10 +51,10 @@ class AppConfig {
   final Duration receiveTimeout;
 
   OfficeConfig get officeLocation => OfficeConfig(
-        latitude: officeLatitude,
-        longitude: officeLongitude,
-        radiusMeters: officeRadiusMeters,
-      );
+    latitude: officeLatitude,
+    longitude: officeLongitude,
+    radiusMeters: officeRadiusMeters,
+  );
 
   AppConfig copyWith({
     String? apiBaseUrl,

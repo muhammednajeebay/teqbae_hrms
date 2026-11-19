@@ -5,8 +5,9 @@ import 'package:teqbae_hrms/core/failure/failure.dart';
 import 'package:teqbae_hrms/features/attendance/domain/attendance.dart';
 import 'package:teqbae_hrms/features/employee/domain/employee.dart';
 import 'package:teqbae_hrms/features/leave/domain/leave.dart';
+import 'package:teqbae_hrms/features/sync/domain/sync_api_client.dart';
 
-class RebsApi {
+class RebsApi implements SyncApiClient {
   RebsApi(AppConfig config, {Dio? dio})
       : _dio = dio ??
             Dio(
@@ -65,6 +66,7 @@ class RebsApi {
     }
   }
 
+  @override
   Future<Result<bool>> postAttendanceEvent(AttendanceEvent event) async {
     try {
       final response = await _dio.post<Map<String, dynamic>>(
