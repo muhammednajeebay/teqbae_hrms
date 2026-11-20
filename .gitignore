@@ -47,6 +47,8 @@ app.*.map.json
 # Local environment and credentials
 *.env
 .env
+*_debug.apk
+
 
 
 # Project documentation & tracking

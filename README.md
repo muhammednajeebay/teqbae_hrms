@@ -146,7 +146,7 @@ To easily test without physical movement:
 
 ---
 
-<!-- ## 8. What the Production Server Must Enforce
+## 8. What the Production Server Must Enforce
 
 Client-side checks provide immediate feedback and smooth UX, but the production backend must independently validate:
 1. **Authentication & Authorization:** Verify JWT/Bearer token and map to authentic employee identity.
@@ -157,7 +157,7 @@ Client-side checks provide immediate feedback and smooth UX, but the production 
 6. **Company Calendar & Timezone:** Ensure day boundaries conform to the company timezone (`Asia/Kolkata`), not the device local timezone.
 7. **Leave Quotas & Overlaps:** Check leave balance atomicity under database transactions to prevent race conditions.
 
---- -->
+---
 
 ## 9. Assumptions Made
 
@@ -181,13 +181,9 @@ Client-side checks provide immediate feedback and smooth UX, but the production 
 ## 12. AI-Usage Disclosure
 
 In accordance with academic and evaluation integrity:
-- **Tools Used:** Antigravity AI Assistant (powered by Google Gemini models).
-- **Areas of Assistance:**
-  - Architecture drafting and boundary definition (Presentation $\to$ Domain $\leftarrow$ Data).
-  - Rapid prototyping of Shelf mock server routes and scenarios.
-  - Test fixture scaffolding and edge-case test case generation.
-  - Reviewing code for lint warnings and documentation formatting.
-- **Verification & Ownership:** Every architectural decision, schema definition, domain rule, sync algorithm, and state machine transition was critically analyzed, verified, and debugged to adhere strictly to project specifications. All tests pass deterministically.
+- **Claude (Anthropic):** assignment analysis, architecture planning, and drafting the planning documents (phase plan, logic, decisions, coding rules, README draft).
+- **Antigravity / Gemini:** (write what you really used it for, such as mock server routes or test scaffolding).
+- I reviewed everything, and I can explain and modify all of it.
 
 ---
 
@@ -198,6 +194,10 @@ In accordance with academic and evaluation integrity:
 - [`decisions.md`](decisions.md) — Architectural decision records (ADRs).
 - [`coding_laws_and_architecture.md`](coding_laws_and_architecture.md) — Layer boundaries, dependency rules, and coding standards.
 - [`task_progress.md`](task_progress.md) — Real-time task tracking and time log.
+- [`Demo Video`](Muhammed_Najeeb_REBS_HRMS_demo.mp4) — Demo video of the app.
+- [`Release APK`](Muhammed_Najeeb_REBS_HRMS_release.apk) — Ready-to-install Android Release APK.
+
+<video controls src="Muhammed_Najeeb_REBS_HRMS_demo.mp4" title="Title"></video>
 
 ---
 
