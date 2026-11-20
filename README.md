@@ -194,10 +194,9 @@ In accordance with academic and evaluation integrity:
 - [`decisions.md`](decisions.md) — Architectural decision records (ADRs).
 - [`coding_laws_and_architecture.md`](coding_laws_and_architecture.md) — Layer boundaries, dependency rules, and coding standards.
 - [`task_progress.md`](task_progress.md) — Real-time task tracking and time log.
-- [`Demo Video`](Muhammed_Najeeb_REBS_HRMS_demo.mp4) — Demo video of the app.
-- [`Release APK`](Muhammed_Najeeb_REBS_HRMS_release.apk) — Ready-to-install Android Release APK.
-
-<video controls src="Muhammed_Najeeb_REBS_HRMS_demo.mp4" title="Title"></video>
+- [🎥 `Demo Video`](Muhammed_Najeeb_REBS_HRMS_demo.mp4) — Interactive app walkthrough demo video.
+- [📦 `Release APK`](Muhammed_Najeeb_REBS_HRMS_release.apk) — Ready-to-install Android Release APK.
+- [🛠️ `Debug APK`](Muhammed_Najeeb_REBS_HRMS_debug.apk) — Android Debug APK build.
 
 ---
 
@@ -267,3 +266,24 @@ The output file will be saved at:
 3. **Test Online Attendance:** Tap **Check In** or **Check Out** within the office area.
 4. **Test Offline Sync:** Turn on **Airplane Mode** on the phone, tap **Check In** or **Check Out** (saved locally as "Pending"), turn off Airplane Mode, and watch the event automatically sync to the server.
 5. **Test Edge Cases via Debug Panel:** Tap the **Tune icon (sliders)** in the top AppBar to switch server scenarios (`timeout`, `slow`, `server_error`, `accept_then_timeout`) or simulate GPS locations (`At Office`, `500m Away`, `GPS Off`) directly from the device.
+
+---
+
+## 14. Demo Video & App Downloads
+
+### 🎥 Watch Demo Walkthrough
+
+Tap to play the walkthrough video demonstrating online geofenced attendance, offline outbox queuing, network recovery sync, and mock server scenario testing:
+
+<video src="Muhammed_Najeeb_REBS_HRMS_demo.mp4" controls="controls" width="100%" style="max-height: 520px; border-radius: 8px;">
+  <p>Your browser does not support the video tag. <a href="Muhammed_Najeeb_REBS_HRMS_demo.mp4">Click here to download/view the demo video</a>.</p>
+</video>
+
+> 🔗 **Direct Link:** [▶️ Click here to open and play `Muhammed_Najeeb_REBS_HRMS_demo.mp4`](Muhammed_Najeeb_REBS_HRMS_demo.mp4)
+
+---
+
+### 📦 Application Packages (APKs)
+- **[Download Release APK](Muhammed_Najeeb_REBS_HRMS_release.apk)** (`Muhammed_Najeeb_REBS_HRMS_release.apk`, ~58 MB) — Production-optimized release build preconfigured with the public ngrok endpoint. Recommended for device installation.
+- **[Download Debug APK](Muhammed_Najeeb_REBS_HRMS_debug.apk)** (`Muhammed_Najeeb_REBS_HRMS_debug.apk`) — Local developer debug build with debugging tools and observatory enabled.
+
